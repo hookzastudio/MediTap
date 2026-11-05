@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calm tap</title>
+<style>
+  :root {
+    --bg1: #e9eef2; --bg2: #e2ebe6;
+    --blob-a: #c6e2d9; --blob-b: #d8d2ee; --blob-c: #f3dccf; --blob-o: 0.8;
+    --orb-hi: #d6f0e9; --orb-mid: #8fc3b8; --orb-lo: #5c9a95;
+    --glow: rgba(128, 190, 178, 0.55); --wave: rgba(92, 154, 149, 0.6);
+    --text: #2b3c43;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: ui-rounded, "SF Pro Rounded", "Nunito", "Trebuchet MS", system-ui, sans-serif;
+    color-scheme: light;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg1: #0e1520; --bg2: #12212a;
+      --blob-a: #1c4648; --blob-b: #2a2954; --blob-c: #3b2b3c; --blob-o: 0.55;
+      --orb-hi: #a4d9ce; --orb-mid: #5aa39d; --orb-lo: #2e6b6f;
+      --glow: rgba(90, 163, 157, 0.42); --wave: rgba(143, 205, 196, 0.55);
+      --text: #dbe7ea;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg1: #0e1520; --bg2: #12212a;
+    --blob-a: #1c4648; --blob-b: #2a2954; --blob-c: #3b2b3c; --blob-o: 0.55;
+    --orb-hi: #a4d9ce; --orb-mid: #5aa39d; --orb-lo: #2e6b6f;
+    --glow: rgba(90, 163, 157, 0.42); --wave: rgba(143, 205, 196, 0.55);
+    --text: #dbe7ea;
+    color-scheme: dark;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  *, *::before, *::after { box-sizing: inherit; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    color: var(--text);
+    font-family: var(--sans);
+    background: linear-gradient(165deg, var(--bg1), var(--bg2));
+  }
+
+  /* Slow drifting colour in the background */
+  .blob {
+    position: fixed;
+    width: 60vmax; height: 60vmax;
+    border-radius: 50%;
+    filter: blur(70px);
+    opacity: var(--blob-o);
+    pointer-events: none;
+    animation: drift 40s ease-in-out infinite alternate;
+  }
+  .blob.a { background: var(--blob-a); left: -20vmax; top: -18vmax; }
+  .blob.b { background: var(--blob-b); right: -24vmax; top: 10vmax; animation-duration: 48s; animation-delay: -12s; }
+  .blob.c { background: var(--blob-c); left: 10vmax; bottom: -30vmax; width: 50vmax; height: 50vmax; animation-duration: 54s; animation-delay: -20s; }
+  @keyframes drift { to { transform: translate(8vmax, 6vmax) scale(1.12); } }
+
+  .stack {
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 34px; padding: 0 24px; text-align: center;
+  }
+
+  /* The orb breathes slowly on its own: about 4.5s in, 5.5s out */
+  .breath {
+    --size: min(54vw, 38vh, 230px);
+    position: relative;
+    isolation: isolate;
+    width: var(--size);
+    aspect-ratio: 1;
+    animation: breathe 10s ease-in-out infinite;
+  }
+  .breath::before {
+    content: "";
+    position: absolute; inset: -42%;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--glow), transparent 66%);
+    z-index: -1;
+  }
+  @keyframes breathe { 0%, 100% { transform: scale(1); } 45% { transform: scale(1.07); } }
+
+  .orb {
+    display: block;
+    width: 100%; height: 100%;
+    padding: 0; border: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    background: radial-gradient(circle at 36% 30%, var(--orb-hi), var(--orb-mid) 55%, var(--orb-lo));
+    box-shadow:
+      inset 0 12px 26px rgba(255, 255, 255, 0.4),
+      inset 0 -16px 32px rgba(20, 60, 64, 0.22),
+      0 24px 60px -8px var(--glow);
+    transition: transform 1s cubic-bezier(0.34, 1.45, 0.64, 1), box-shadow 1s ease-out;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none; -webkit-user-select: none;
+  }
+  .orb.is-pressed {
+    transform: scale(0.92);
+    box-shadow:
+      inset 0 6px 18px rgba(255, 255, 255, 0.3),
+      inset 0 -10px 26px rgba(20, 60, 64, 0.3),
+      0 10px 36px -6px var(--glow);
+    transition-duration: 0.28s;
+    transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .orb:focus-visible { outline: 3px solid var(--orb-hi); outline-offset: 10px; }
+
+  .wave {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    border: 2px solid var(--wave);
+    z-index: -1;
+    pointer-events: none;
+    animation: wave 2.8s cubic-bezier(0.2, 0.6, 0.3, 1) forwards;
+  }
+  @keyframes wave { from { transform: scale(1); opacity: 0.7; } to { transform: scale(2.4); opacity: 0; } }
+
+  .bubble {
+    position: fixed; z-index: 2;
+    border-radius: 50%;
+    pointer-events: none;
+    background: radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.9), var(--orb-hi) 45%, transparent 72%);
+    opacity: 0;
+    animation: rise var(--dur) ease-out forwards;
+  }
+  @keyframes rise {
+    0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
+    15% { opacity: 0.85; }
+    100% { transform: translate(var(--dx), var(--dy)) scale(1); opacity: 0; }
+  }
+
+  .msg {
+    margin: 0;
+    min-height: 2.6em;
+    max-width: 20ch;
+    display: grid; align-items: center;
+    font: italic 400 clamp(1.25rem, 5vw, 1.6rem)/1.3 var(--serif);
+    letter-spacing: 0.01em;
+  }
+  .msg.swap { animation: soft 1.4s ease-out; }
+  @keyframes soft { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .count {
+    margin: 0;
+    font: 600 0.95rem/1 var(--sans);
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.65;
+  }
+
+  /* Soft cursor for mouse users: a dot with a glowing halo */
+  .cur { position: fixed; left: 0; top: 0; z-index: 99; pointer-events: none; display: none; transition: opacity 0.3s; }
+  .custom-cursor .cur { display: block; }
+  .cur.hide { opacity: 0; }
+  .cur i { display: block; border-radius: 50%; }
+  #halo i {
+    width: 46px; height: 46px; margin: -23px 0 0 -23px;
+    background: radial-gradient(circle, var(--glow), transparent 70%);
+    border: 1px solid var(--wave);
+    transition: transform 0.5s cubic-bezier(0.34, 1.45, 0.64, 1);
+  }
+  #dot i {
+    width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px;
+    background: #fff;
+    box-shadow: 0 0 0 1px rgba(44, 76, 84, 0.4), 0 0 12px rgba(255, 255, 255, 0.9);
+  }
+  #halo.over i { transform: scale(1.7); }
+  #halo.down i { transform: scale(0.8); }
+  html.custom-cursor, html.custom-cursor * { cursor: none !important; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .breath, .blob, .msg.swap { animation: none; }
+    .orb, .orb.is-pressed, #halo i { transition: none; }
+    .wave, .bubble { display: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="blob a"></div><div class="blob b"></div><div class="blob c"></div>
+
+  <main class="stack">
+    <div class="breath" id="breath">
+      <button class="orb" id="btn" type="button" aria-label="Tap to relax"></button>
+    </div>
+    <p class="msg" id="msg">Tap the orb and breathe slowly.</p>
+    <p class="count"><span id="num">0</span> <span id="unit">taps</span></p>
+  </main>
+
+  <div class="cur" id="halo"><i></i></div>
+  <div class="cur" id="dot"><i></i></div>
+
+<script>
+(function () {
+  var btn = document.getElementById('btn');
+  var breath = document.getElementById('breath');
+  var msgEl = document.getElementById('msg');
+  var numEl = document.getElementById('num');
+  var unitEl = document.getElementById('unit');
+  var root = document.documentElement;
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- Sound: soft bell notes from a pentatonic scale, so every tap sounds good ----
+  var ctx = null, master = null, bus = null;
+  var SCALE = [293.66, 329.63, 369.99, 440, 493.88, 587.33, 659.25, 739.99];
+  var note = 2;
+
+  function initAudio() {
+    if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    ctx = new AC();
+    var comp = ctx.createDynamicsCompressor();
+    comp.connect(ctx.destination);
+    master = ctx.createGain();
+    master.gain.value = 0.8;
+    master.connect(comp);
+    var dry = ctx.createGain();
+    dry.gain.value = 0.7;
+    dry.connect(master);
+    // Generated room reverb: gives the notes a long, calming tail
+    var conv = ctx.createConvolver();
+    var len = Math.floor(ctx.sampleRate * 2.6);
+    var ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (var c = 0; c < 2; c++) {
+      var d = ir.getChannelData(c);
+      for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2);
+    }
+    conv.buffer = ir;
+    var wet = ctx.createGain();
+    wet.gain.value = 0.55;
+    conv.connect(wet);
+    wet.connect(master);
+    bus = ctx.createBiquadFilter();
+    bus.type = 'lowpass';
+    bus.frequency.value = 3600;
+    bus.connect(dry);
+    bus.connect(conv);
+  }
+
+  function bell(f, t, v) {
+    // [frequency multiple, loudness, decay seconds]
+    [[1, 1, 3.6], [2, 0.32, 2.2], [3.01, 0.12, 1.2], [0.5, 0.4, 3.2]].forEach(function (p) {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.value = f * p[0] * (1 + (Math.random() - 0.5) * 0.002);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.32 * v * p[1], t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + p[2]);
+      o.connect(g); g.connect(bus);
+      o.start(t); o.stop(t + p[2] + 0.05);
+    });
+  }
+
+  function drop(t) {
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(190, t);
+    o.frequency.exponentialRampToValueAtTime(95, t + 0.22);
+    g.gain.setValueAtTime(0.18, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
+    o.connect(g); g.connect(master);
+    o.start(t); o.stop(t + 0.26);
+  }
+
+  function soundTap() {
+    if (!ctx) return;
+    var t = ctx.currentTime, steps = [-2, -1, 1, 2];
+    note = Math.max(0, Math.min(SCALE.length - 1, note + steps[Math.floor(Math.random() * 4)]));
+    bell(SCALE[note], t, 0.7 + Math.random() * 0.3);
+    drop(t);
+  }
+
+  // ---- Tap counter (remembered in this browser when storage is available) ----
+  var count = 0;
+  try { count = parseInt(localStorage.getItem('tap-count'), 10) || 0; } catch (e) {}
+  function render() {
+    numEl.textContent = count.toLocaleString();
+    unitEl.textContent = count === 1 ? 'tap' : 'taps';
+  }
+  render();
+
+  var MSGS = [
+    'Let it go.',
+    'Breathe in slowly.',
+    'Now breathe out, slower.',
+    'Soften your shoulders.',
+    'Unclench your jaw.',
+    'You are doing enough.',
+    'Nothing else needs you right now.',
+    'This moment is yours.'
+  ];
+  function nextMessage() {
+    msgEl.textContent = MSGS[(count - 1) % MSGS.length];
+    msgEl.classList.remove('swap');
+    void msgEl.offsetWidth;
+    msgEl.classList.add('swap');
+  }
+
+  // ---- Visual feedback: water rings and rising bubbles ----
+  function waves() {
+    if (reduce) return;
+    [0, 220].forEach(function (delay) {
+      setTimeout(function () {
+        var w = document.createElement('span');
+        w.className = 'wave';
+        breath.appendChild(w);
+        w.addEventListener('animationend', function () { w.remove(); });
+        setTimeout(function () { if (w.parentNode) w.remove(); }, 3400);
+      }, delay);
+    });
+  }
+
+  function bubbles() {
+    if (reduce || document.querySelectorAll('.bubble').length > 36) return;
+    var b = btn.getBoundingClientRect();
+    var cx = b.left + b.width / 2, cy = b.top + b.height * 0.35;
+    var n = 5 + Math.floor(Math.random() * 3);
+    for (var i = 0; i < n; i++) {
+      var el = document.createElement('span');
+      var size = 10 + Math.random() * 22;
+      el.className = 'bubble';
+      el.style.width = el.style.height = size + 'px';
+      el.style.left = (cx + (Math.random() - 0.5) * b.width * 0.6 - size / 2) + 'px';
+      el.style.top = cy + 'px';
+      el.style.setProperty('--dx', ((Math.random() - 0.5) * 140) + 'px');
+      el.style.setProperty('--dy', (-(160 + Math.random() * 180)) + 'px');
+      el.style.setProperty('--dur', (3 + Math.random() * 2.5) + 's');
+      el.addEventListener('animationend', (function (e) { return function () { e.remove(); }; })(el));
+      document.body.appendChild(el);
+      setTimeout((function (e) { return function () { if (e.parentNode) e.remove(); }; })(el), 6500);
+    }
+  }
+
+  // ---- Press / release ----
+  var pressed = false;
+
+  function press() {
+    if (pressed) return;
+    pressed = true;
+    initAudio();
+    btn.classList.add('is-pressed');
+    count++;
+    render();
+    try { localStorage.setItem('tap-count', String(count)); } catch (e) {}
+    nextMessage();
+    soundTap();
+    waves();
+    bubbles();
+    try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {}
+  }
+
+  function release() {
+    if (!pressed) return;
+    pressed = false;
+    btn.classList.remove('is-pressed');
+  }
+
+  btn.addEventListener('pointerdown', function (e) {
+    if (e.button !== undefined && e.button > 0) return;
+    try { btn.setPointerCapture(e.pointerId); } catch (err) {}
+    press();
+  });
+  btn.addEventListener('pointerup', release);
+  btn.addEventListener('pointercancel', release);
+  btn.addEventListener('lostpointercapture', release);
+
+  btn.addEventListener('keydown', function (e) {
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      if (!e.repeat) press();
+    }
+  });
+  btn.addEventListener('keyup', function (e) {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); release(); }
+  });
+  btn.addEventListener('blur', release);
+
+  // Clicks from assistive tech arrive without pointer or key events
+  btn.addEventListener('click', function (e) {
+    if (e.detail === 0) { press(); setTimeout(release, 160); }
+  });
+
+  // ---- Soft cursor (mouse only) ----
+  var halo = document.getElementById('halo');
+  var dot = document.getElementById('dot');
+  var mx = -100, my = -100, rx = -100, ry = -100, cursorOn = false;
+
+  function tick() {
+    var k = reduce ? 1 : 0.14;
+    rx += (mx - rx) * k;
+    ry += (my - ry) * k;
+    halo.style.transform = 'translate(' + rx + 'px,' + ry + 'px)';
+    requestAnimationFrame(tick);
+  }
+
+  document.addEventListener('pointermove', function (e) {
+    if (e.pointerType !== 'mouse') return;
+    mx = e.clientX; my = e.clientY;
+    if (!cursorOn) {
+      cursorOn = true;
+      rx = mx; ry = my;
+      root.classList.add('custom-cursor');
+      requestAnimationFrame(tick);
+    }
+    halo.classList.remove('hide');
+    dot.classList.remove('hide');
+    dot.style.transform = 'translate(' + mx + 'px,' + my + 'px)';
+    halo.classList.toggle('over', !!(e.target.closest && e.target.closest('#btn')));
+  });
+  document.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'mouse') halo.classList.add('down');
+  });
+  document.addEventListener('pointerup', function () { halo.classList.remove('down'); });
+  root.addEventListener('mouseleave', function () {
+    halo.classList.add('hide');
+    dot.classList.add('hide');
+  });
+})();
+</script>
+</body>
+</html>
